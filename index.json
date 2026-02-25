@@ -1,9 +1,10 @@
 [
   {
-    "module_name": "spikes",
+    "module_name": "weegit_spikes",
     "keywords": ["spikes", "in vitro", "in vivo", "ex vivo"],
     "path": "add-ons/spikes"
   }
 ]
+
 
 
