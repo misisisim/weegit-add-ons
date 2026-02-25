@@ -89,7 +89,6 @@ class SpikesAddOn(BaseAddOn):
                 filters=gui_setup.filters,
                 output_number_of_dots=output_number_of_dots,
                 apply_filters=True,
-                transformation_add_ons=[],
             )
             mad = float(np.median(np.abs(channel_data - np.median(channel_data))))
             threshold_value = threshold * mad / 0.6745 if mad > 0 else threshold
@@ -201,4 +200,5 @@ class SpikesAddOn(BaseAddOn):
                 x = ((spike.time_ms - start_time_ms) / axis_duration_ms) * axis_width
                 x_int = int(x)
                 painter.drawRect(x_int - half, y - half, size, size)
+
 
