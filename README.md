@@ -1,1 +1,3 @@
-# weegit-add-ons
+# Weegit add-ons
+
+Repo for all weegit add-ons.
