@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spikes"
+version = "0.1.0"
+description = "Finds spikes by threshold and draws them in signal traces."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    {name = "Sasha1618", email = "sasha.k.1618@gmail.com"},
+]
+dependencies = [
+    "PyQt6>=6.4.2",
+    "scipy>=1.12.0",
+    "numpy~=2.2.0",
+]
+
+[project.entry-points]
+"add-ons" = {spikes = "spikes.py:SpikesAddOn"}
