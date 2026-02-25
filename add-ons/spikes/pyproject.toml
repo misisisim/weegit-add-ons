@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "spikes"
+name = "weegit_spikes"
 version = "0.1.0"
 description = "Finds spikes by threshold and draws them in signal traces."
 readme = "README.md"
@@ -19,3 +19,4 @@ dependencies = [
 
 [project.entry-points]
 add_ons = {spikes = "spikes:SpikesAddOn"}
+
