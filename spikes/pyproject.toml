@@ -18,4 +18,4 @@ dependencies = [
 ]
 
 [project.entry-points]
-addons = {spikes = "spikes:SpikesAddOn"}
+add_ons = {spikes = "spikes:SpikesAddOn"}
