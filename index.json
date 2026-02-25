@@ -1,8 +1,9 @@
 [
   {
-    "name": "Spikes",
+    "module_name": "spikes",
     "keywords": ["spikes", "in vitro", "in vivo", "ex vivo"],
     "path": "add-ons/spikes"
   }
 ]
+
 
