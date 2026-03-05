@@ -53,7 +53,7 @@ class SpikesAddOn(BaseAddOn):
             return None
         return float(spin.value())
 
-    def run(self, user_session, experiment_data, add_on_data_dir):
+    def run(self, session_manager, add_on_data_dir):
         threshold = self._ask_threshold(5.0)
         if threshold is None:
             return
@@ -61,10 +61,11 @@ class SpikesAddOn(BaseAddOn):
         add_ons_data_dir = Path(add_on_data_dir)
         add_ons_data_dir.mkdir(parents=True, exist_ok=True)
 
-        gui_setup = user_session.gui_setup
+        gui_setup = session_manager.gui_setup
+        experiment_data = session_manager.experiment_data
         header = experiment_data.header
         sweep_idx = gui_setup.current_sweep_idx
-        channel_indexes = list(user_session.eeg_channel_indexes)
+        channel_indexes = list(session_manager.eeg_channel_indexes)
 
         if not channel_indexes:
             yield {"progress": 100, "message": "No EEG channels to process"}
@@ -201,5 +202,3 @@ class SpikesAddOn(BaseAddOn):
                 x = ((spike.time_ms - start_time_ms) / axis_duration_ms) * axis_width
                 x_int = int(x)
                 painter.drawRect(x_int - half, y - half, size, size)
-
-
