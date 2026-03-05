@@ -23,5 +23,4 @@ csd = "csd:CSDAddOn"
 analog_events = "analog_events:AnalogEventsAddOn"
 digital_events = "digital_events:DigitalEventsAddOn"
 
-[tool.setuptools]
-packages = ["spikes", "csd", "analog_events", "digital_events"]
+
