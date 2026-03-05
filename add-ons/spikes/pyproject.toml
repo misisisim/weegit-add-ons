@@ -22,5 +22,5 @@ add_ons = {
     spikes = "spikes:SpikesAddOn",
     csd = "csd:CSDAddOn",
     analog_events = "analog_events:AnalogEventsAddOn",
-    digital_events = "digital_events:DigitalEventsAddOn",
+    digital_events = "digital_events:DigitalEventsAddOn"
 }
