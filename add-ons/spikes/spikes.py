@@ -10,7 +10,7 @@ from PyQt6.QtGui import QColor, QPen, QPainter
 from scipy.signal import find_peaks
 
 from weegit.core.weegit_session import Spike, Spikes
-from weegit.core.conversions.add_ons import BaseAddOn
+from weegit.core.add_ons.base import BaseAddOn
 
 
 class SpikesAddOn(BaseAddOn):
@@ -24,9 +24,6 @@ class SpikesAddOn(BaseAddOn):
         self._cached_spikes: Optional[Spikes] = None
         self._cached_spikes_path: Optional[Path] = None
         self._cached_mtime: Optional[float] = None
-
-    def transform(self, channel_data: np.ndarray, sample_rate: float):
-        return channel_data
 
     def _ask_threshold(self, current_threshold: float = 5.0) -> Optional[float]:
         dialog = QDialog()
