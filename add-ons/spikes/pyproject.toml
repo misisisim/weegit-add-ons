@@ -18,13 +18,14 @@ dependencies = [
 ]
 
 [tool.setuptools]
-py_modules = ["analog_events", "csd", "spikes", "digital_events"]
+py-modules = ["analog_events", "csd", "spikes", "digital_events"]
 
 [project.entry-points.add_ons]
 spikes = "spikes:SpikesAddOn"
 csd = "csd:CSDAddOn"
 analog_events = "analog_events:AnalogEventsAddOn"
 digital_events = "digital_events:DigitalEventsAddOn"
+
 
 
 
