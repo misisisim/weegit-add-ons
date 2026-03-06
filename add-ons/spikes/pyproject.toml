@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "weegit_spikes"
-version = "0.6.0"
+version = "0.6.1"
 description = "Finds spikes by threshold and draws them in signal traces."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -25,6 +25,7 @@ spikes = "spikes:SpikesAddOn"
 csd = "csd:CSDAddOn"
 analog_events = "analog_events:AnalogEventsAddOn"
 digital_events = "digital_events:DigitalEventsAddOn"
+
 
 
 
