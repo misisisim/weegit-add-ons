@@ -9,9 +9,13 @@ description = "Finds spikes by threshold and draws them in signal traces."
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
-    {name = "Aleksandr", email = "sasha.k.1618@gmail.com", url = "https://github.com/sasha1618"},
+    {name = "Aleksandr", email = "sasha.k.1618@gmail.com"},
     {name = "Anatoliy", email = "", url = ""},
 ]
+
+[project.urls]
+"Author (Aleksandr)" = "https://github.com/sasha1618"
+
 dependencies = [
     "PyQt6>=6.4.2",
     "scipy>=1.12.0",
