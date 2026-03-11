@@ -1,11 +1,12 @@
 [
   {
-    "label": "Spikes",
-    "module_name": "weegit_spikes",
+    "label": "Molecular neural interfaces lab",
+    "module_name": "molecular_NI",
     "keywords": ["spikes", "in vitro", "in vivo", "ex vivo"],
-    "path": "add-ons/spikes"
+    "path": "add-ons/molecular_NI"
   }
 ]
+
 
 
 
