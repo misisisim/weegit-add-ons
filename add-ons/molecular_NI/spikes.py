@@ -4,13 +4,38 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 
 import numpy as np
-from PyQt6.QtCore import QRect
-from PyQt6.QtWidgets import QDialog, QDoubleSpinBox, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PyQt6.QtCore import QRect, Qt
+from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDoubleSpinBox,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
+)
 from PyQt6.QtGui import QColor, QPen, QPainter
 from pydantic import BaseModel, Field
 from scipy.signal import find_peaks
 
 from weegit.core.add_ons.base import BaseAddOn
+from weegit.core.conversions.filters import (
+    all_filter_names,
+    filter_class_by_name,
+    ButterworthLowPassFilter,
+    ButterworthHighPassFilter,
+    ButterworthBandPassFilter,
+    ChebyshevBandPassFilter,
+    NotchFilter,
+    BaseFilter,
+)
 
 
 class Spike(BaseModel):
@@ -35,18 +60,150 @@ class SpikesAddOn(BaseAddOn):
         self._cached_spikes_path: Optional[Path] = None
         self._cached_mtime: Optional[float] = None
 
-    def _ask_threshold(self, current_threshold: float = 5.0) -> Optional[float]:
+    def _ask_parameters(
+        self, session_manager, header, current_threshold: float = 5.0
+    ) -> Optional[Tuple[List[int], float, Optional[BaseFilter]]]:
+        user_session = session_manager.user_session
+        groups = [
+            (idx, group)
+            for idx, group in enumerate(user_session.gui_setup.channels_groups or [])
+            if (not group.is_auxiliary) and group.channel_indexes
+        ]
+        if not groups:
+            QMessageBox.warning(None, "Spikes", "No non-auxiliary channel groups configured.")
+            return None
+
         dialog = QDialog()
         dialog.setWindowTitle("Spikes detection")
         layout = QVBoxLayout(dialog)
-        row = QHBoxLayout()
-        row.addWidget(QLabel("Threshold:"))
-        spin = QDoubleSpinBox()
-        spin.setRange(0.0, 1e9)
-        spin.setSingleStep(0.1)
-        spin.setValue(float(current_threshold))
-        row.addWidget(spin)
-        layout.addLayout(row)
+        form = QFormLayout()
+
+        group_combo = QComboBox()
+        for group_idx, group in groups:
+            group_combo.addItem(f"#{group_idx} {group.name}", group_idx)
+        form.addRow("Channel group:", group_combo)
+
+        channels_list = QListWidget()
+        channels_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+
+        def _rebuild_channels():
+            channels_list.clear()
+            cur_group_idx = int(group_combo.currentData())
+            selected_group = user_session.gui_setup.channels_groups[cur_group_idx]
+            for ch in selected_group.channel_indexes:
+                name = ""
+                try:
+                    if 0 <= ch < len(header.channel_info.name):
+                        name = header.channel_info.name[ch]
+                except Exception:
+                    name = ""
+                label = f"{ch}" if not name else f"{ch} [{name}]"
+                item = QListWidgetItem(label)
+                item.setData(Qt.ItemDataRole.UserRole, ch)
+                channels_list.addItem(item)
+                item.setSelected(True)
+
+        _rebuild_channels()
+        group_combo.currentIndexChanged.connect(lambda _idx: _rebuild_channels())
+        form.addRow("Channels:", channels_list)
+
+        threshold_spin = QDoubleSpinBox()
+        threshold_spin.setRange(0.0, 1e9)
+        threshold_spin.setSingleStep(0.1)
+        threshold_spin.setValue(float(current_threshold))
+        form.addRow("Threshold:", threshold_spin)
+
+        use_filter_checkbox = QCheckBox("Use filter")
+        use_filter_checkbox.setChecked(False)
+        form.addRow("Filtering:", use_filter_checkbox)
+
+        filter_selector = QComboBox()
+        filter_selector.addItems(all_filter_names())
+        filter_selector.setEnabled(False)
+        form.addRow("Filter type:", filter_selector)
+
+        filter_params_container = QWidget()
+        filter_params_widget = QVBoxLayout(filter_params_container)
+        filter_params_widget.setContentsMargins(0, 0, 0, 0)
+        form.addRow("Filter params:", filter_params_container)
+
+        filter_param_inputs: Dict[str, object] = {}
+
+        def _clear_layout_items(layout_obj) -> None:
+            while layout_obj.count():
+                item = layout_obj.takeAt(0)
+                widget = item.widget()
+                child_layout = item.layout()
+                if widget is not None:
+                    widget.deleteLater()
+                elif child_layout is not None:
+                    _clear_layout_items(child_layout)
+
+        def _clear_filter_params() -> None:
+            _clear_layout_items(filter_params_widget)
+            filter_param_inputs.clear()
+
+        def _add_param_spin(label: str, key: str, value: float, min_v: float, max_v: float, step: float) -> None:
+            row = QHBoxLayout()
+            row.addWidget(QLabel(label))
+            spin = QDoubleSpinBox()
+            spin.setRange(min_v, max_v)
+            spin.setSingleStep(step)
+            spin.setDecimals(6)
+            spin.setValue(float(value))
+            row.addWidget(spin)
+            filter_params_widget.addLayout(row)
+            filter_param_inputs[key] = spin
+
+        def _add_param_int(label: str, key: str, value: int, min_v: int, max_v: int) -> None:
+            row = QHBoxLayout()
+            row.addWidget(QLabel(label))
+            spin = QSpinBox()
+            spin.setRange(min_v, max_v)
+            spin.setSingleStep(1)
+            spin.setValue(int(value))
+            row.addWidget(spin)
+            filter_params_widget.addLayout(row)
+            filter_param_inputs[key] = spin
+
+        def _rebuild_filter_params() -> None:
+            _clear_filter_params()
+            if not use_filter_checkbox.isChecked():
+                return
+            selected_name = filter_selector.currentText().strip()
+            cls = filter_class_by_name(selected_name)
+            if cls is None:
+                return
+            flt = cls()
+            if isinstance(flt, ButterworthLowPassFilter):
+                _add_param_spin("Cutoff (Hz):", "cutoff_hz", flt.cutoff_hz, 0.1, 1e6, 1.0)
+                _add_param_int("Order:", "order", flt.order, 1, 12)
+            elif isinstance(flt, ButterworthHighPassFilter):
+                _add_param_spin("Cutoff (Hz):", "cutoff_hz", flt.cutoff_hz, 0.1, 1e6, 1.0)
+                _add_param_int("Order:", "order", flt.order, 1, 12)
+            elif isinstance(flt, ButterworthBandPassFilter):
+                _add_param_spin("Low cut (Hz):", "lowcut_hz", flt.lowcut_hz, 0.1, 1e6, 1.0)
+                _add_param_spin("High cut (Hz):", "highcut_hz", flt.highcut_hz, 0.1, 1e6, 1.0)
+                _add_param_int("Order:", "order", flt.order, 1, 12)
+            elif isinstance(flt, ChebyshevBandPassFilter):
+                _add_param_spin("Low cut (Hz):", "lowcut_hz", flt.lowcut_hz, 0.1, 1e6, 1.0)
+                _add_param_spin("High cut (Hz):", "highcut_hz", flt.highcut_hz, 0.1, 1e6, 1.0)
+                _add_param_int("Order:", "order", flt.order, 1, 12)
+                _add_param_spin("Ripple (dB):", "ripple_db", flt.ripple_db, 0.1, 10.0, 0.1)
+            elif isinstance(flt, NotchFilter):
+                _add_param_spin("Notch (Hz):", "notch_freq_hz", flt.notch_freq_hz, 1.0, 1e6, 1.0)
+                _add_param_spin("Q factor:", "q_factor", flt.q_factor, 0.1, 200.0, 1.0)
+
+        def _on_use_filter_changed(_state: int) -> None:
+            enabled = use_filter_checkbox.isChecked()
+            filter_selector.setEnabled(enabled)
+            _rebuild_filter_params()
+
+        use_filter_checkbox.stateChanged.connect(_on_use_filter_changed)
+        filter_selector.currentIndexChanged.connect(lambda _idx: _rebuild_filter_params())
+        _rebuild_filter_params()
+        layout.addLayout(form)
+
         actions = QHBoxLayout()
         btn_cancel = QPushButton("Cancel")
         btn_run = QPushButton("Run")
@@ -58,21 +215,54 @@ class SpikesAddOn(BaseAddOn):
         btn_run.clicked.connect(dialog.accept)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return None
-        return float(spin.value())
+
+        selected_items = channels_list.selectedItems()
+        channel_indexes: List[int] = []
+        for item in selected_items:
+            value = item.data(Qt.ItemDataRole.UserRole)
+            if value is not None:
+                channel_indexes.append(int(value))
+        if not channel_indexes:
+            QMessageBox.warning(dialog, "Spikes", "Select at least one channel.")
+            return None
+
+        selected_filter: Optional[BaseFilter] = None
+        if use_filter_checkbox.isChecked():
+            selected_name = filter_selector.currentText().strip()
+            cls = filter_class_by_name(selected_name)
+            if cls is None:
+                QMessageBox.warning(dialog, "Spikes", "Unknown filter selected.")
+                return None
+            flt = cls()
+            setattr(flt, "enabled", True)
+            for key, widget in filter_param_inputs.items():
+                if isinstance(widget, QDoubleSpinBox):
+                    raw_value = float(widget.value())
+                    current = getattr(flt, key, raw_value)
+                    if isinstance(current, int):
+                        setattr(flt, key, int(raw_value))
+                    else:
+                        setattr(flt, key, raw_value)
+                elif isinstance(widget, QSpinBox):
+                    setattr(flt, key, int(widget.value()))
+            if hasattr(flt, "sos_cache"):
+                flt.sos_cache = {}
+            selected_filter = flt
+
+        return channel_indexes, float(threshold_spin.value()), selected_filter
 
     def run(self, session_manager, add_on_data_dir):
-        threshold = self._ask_threshold(5.0)
-        if threshold is None:
+        header = session_manager.header
+        params = self._ask_parameters(session_manager, header, 5.0)
+        if params is None:
             return
+        channel_indexes, threshold, selected_filter = params
 
         add_ons_data_dir = Path(add_on_data_dir)
         add_ons_data_dir.mkdir(parents=True, exist_ok=True)
 
-        gui_setup = session_manager.gui_setup
         experiment_data = session_manager.experiment_data
-        header = experiment_data.header
-        sweep_idx = gui_setup.current_sweep_idx
-        channel_indexes = list(session_manager.gui_setup.all_non_auxiliary_channel_indexes())
+        sweep_idx = session_manager.gui_setup.current_sweep_idx
 
         if not channel_indexes:
             yield {"progress": 100, "message": "No EEG channels to process"}
@@ -84,14 +274,10 @@ class SpikesAddOn(BaseAddOn):
 
         spikes_by_channel: Dict[int, List[Spike]] = {}
         total = len(channel_indexes)
+        one_filter: List[BaseFilter] = [selected_filter] if selected_filter is not None else []
         yield {"progress": 0, "message": f"Detecting spikes for sweep {sweep_idx}..."}
 
         for idx, channel_idx in enumerate(channel_indexes, start=1):
-            channel_filters = []
-            for group in (gui_setup.channels_groups or []):
-                if channel_idx in group.channel_indexes:
-                    channel_filters = list(group.filters or [])
-                    break
             channel_data = experiment_data.process_single_channel(
                 channel_idx=channel_idx,
                 sweep_idx=sweep_idx,
@@ -99,7 +285,7 @@ class SpikesAddOn(BaseAddOn):
                 end_sample=end_sample,
                 each_point=1,
                 sample_rate=header.sample_rate,
-                filters=channel_filters,
+                filters=one_filter,
                 output_number_of_dots=output_number_of_dots,
                 transformation_add_ons=[],
             )
