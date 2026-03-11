@@ -3,13 +3,14 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "weegit_spikes"
-version = "0.6.1"
+name = "molecular_NI"
+version = "0.6.2"
 description = "Finds spikes by threshold and draws them in signal traces."
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
-    {name = "Sasha1618", email = "sasha.k.1618@gmail.com"},
+    {name = "Aleksandr", email = "sasha.k.1618@gmail.com", url = "https://github.com/sasha1618"},
+    {name = "Anatoliy", email = "", url = ""},
 ]
 dependencies = [
     "PyQt6>=6.4.2",
