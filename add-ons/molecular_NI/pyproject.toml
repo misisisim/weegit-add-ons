@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 authors = [
     {name = "Aleksandr", email = "sasha.k.1618@gmail.com"},
-    {name = "Anatoliy", email = "", url = ""},
+    {name = "Anatoliy"},
 ]
 
 [project.urls]
