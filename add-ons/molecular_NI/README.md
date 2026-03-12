@@ -7,7 +7,7 @@
 - `analog_events` - детекция событий на аналоговом канале и добавление их в `UserSession.events`.
 - `csd` - визуализация CSD-фона под сигналами.
 
-Все add-on'ы запускаются через `Analysis > Run` в Weegit.
+Все add-on'ы запускаются через боковую панель `Analysis > Run` в Weegit.
 
 ---
 
