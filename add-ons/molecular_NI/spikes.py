@@ -90,6 +90,7 @@ class SpikesAddOn(BaseAddOn):
             channels_list.clear()
             cur_group_idx = int(group_combo.currentData())
             selected_group = user_session.gui_setup.channels_groups[cur_group_idx]
+            enabled_indexes = set(getattr(selected_group, "enabled_indexes", set()) or set())
             for ch in selected_group.channel_indexes:
                 name = ""
                 try:
@@ -101,7 +102,7 @@ class SpikesAddOn(BaseAddOn):
                 item = QListWidgetItem(label)
                 item.setData(Qt.ItemDataRole.UserRole, ch)
                 channels_list.addItem(item)
-                item.setSelected(True)
+                item.setSelected(ch in enabled_indexes)
 
         _rebuild_channels()
         group_combo.currentIndexChanged.connect(lambda _idx: _rebuild_channels())

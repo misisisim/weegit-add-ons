@@ -7,8 +7,10 @@ from typing import Dict, List, Optional, Any, Tuple
 import numpy as np
 from PyQt6.QtCore import QRect, Qt
 from PyQt6.QtWidgets import (
+    QComboBox,
     QDialog,
     QDoubleSpinBox,
+    QFormLayout,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -43,6 +45,7 @@ class CSDAddOn(BaseAddOn):
         self._auto_scale_max: Optional[float] = None
         self._x_pixels_step: int = self.DEFAULT_X_PIXELS_STEP
         self._y_pixels_step: int = self.DEFAULT_Y_PIXELS_STEP
+        self._target_group_key: Optional[str] = None
         self._config_loaded_for_dir: Optional[Path] = None
 
         # Cached CSD and rendered assets
@@ -110,11 +113,18 @@ class CSDAddOn(BaseAddOn):
                 self._y_pixels_step = self._sanitize_pixels_step(
                     data.get("y_pixels_step"), self.DEFAULT_Y_PIXELS_STEP
                 )
+                raw_group_key = data.get("target_group_key")
+                if raw_group_key:
+                    self._target_group_key = str(raw_group_key)
+                else:
+                    raw_group_idx = data.get("target_group_idx")
+                    self._target_group_key = str(raw_group_idx) if raw_group_idx is not None else None
             except Exception:
                 self._scale_min = None
                 self._scale_max = None
                 self._x_pixels_step = self.DEFAULT_X_PIXELS_STEP
                 self._y_pixels_step = self.DEFAULT_Y_PIXELS_STEP
+                self._target_group_key = None
 
     def _save_config(self, add_on_data_dir: Optional[Path]) -> None:
         if add_on_data_dir is None:
@@ -127,6 +137,7 @@ class CSDAddOn(BaseAddOn):
         payload: Dict[str, Any] = {
             "x_pixels_step": int(self._x_pixels_step),
             "y_pixels_step": int(self._y_pixels_step),
+            "target_group_key": self._target_group_key,
         }
         if self._scale_min is not None and self._scale_max is not None:
             payload["vmin"] = float(self._scale_min)
@@ -139,49 +150,48 @@ class CSDAddOn(BaseAddOn):
     # ---- Run: choose background scale ----
     def _ask_background_scale(
         self,
-        add_on_data_dir: Optional[Path],
+        group_options: List[Tuple[str, str]],
+        default_group_key: str,
         default_min: float,
         default_max: float,
         default_x_pixels_step: int,
         default_y_pixels_step: int,
-    ) -> Optional[Tuple[Optional[float], Optional[float], bool, int, int]]:
+    ) -> Optional[Tuple[str, Optional[float], Optional[float], bool, int, int]]:
         dialog = QDialog()
         dialog.setWindowTitle("CSD background scale")
         layout = QVBoxLayout(dialog)
 
-        row_min = QHBoxLayout()
-        row_min.addWidget(QLabel("Scale min:"))
+        form = QFormLayout()
+
+        group_combo = QComboBox()
+        for group_key, group_label in group_options:
+            group_combo.addItem(group_label, group_key)
+        selected_group_pos = max(0, group_combo.findData(default_group_key))
+        group_combo.setCurrentIndex(selected_group_pos)
+        form.addRow("Channel group:", group_combo)
+
         spin_min = QDoubleSpinBox()
         spin_min.setRange(-1e9, 1e9)
         spin_min.setDecimals(6)
         spin_min.setValue(float(default_min))
-        row_min.addWidget(spin_min)
-        layout.addLayout(row_min)
+        form.addRow("Scale min:", spin_min)
 
-        row_max = QHBoxLayout()
-        row_max.addWidget(QLabel("Scale max:"))
         spin_max = QDoubleSpinBox()
         spin_max.setRange(-1e9, 1e9)
         spin_max.setDecimals(6)
         spin_max.setValue(float(default_max))
-        row_max.addWidget(spin_max)
-        layout.addLayout(row_max)
+        form.addRow("Scale max:", spin_max)
 
-        row_x_step = QHBoxLayout()
-        row_x_step.addWidget(QLabel("X pixel step:"))
         spin_x_step = QSpinBox()
         spin_x_step.setRange(1, 128)
         spin_x_step.setValue(int(default_x_pixels_step))
-        row_x_step.addWidget(spin_x_step)
-        layout.addLayout(row_x_step)
+        form.addRow("X pixel step:", spin_x_step)
 
-        row_y_step = QHBoxLayout()
-        row_y_step.addWidget(QLabel("Y pixel step:"))
         spin_y_step = QSpinBox()
         spin_y_step.setRange(1, 128)
         spin_y_step.setValue(int(default_y_pixels_step))
-        row_y_step.addWidget(spin_y_step)
-        layout.addLayout(row_y_step)
+        form.addRow("Y pixel step:", spin_y_step)
+        layout.addLayout(form)
 
         actions = QHBoxLayout()
         btn_cancel = QPushButton("Cancel")
@@ -205,10 +215,11 @@ class CSDAddOn(BaseAddOn):
 
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return None
+        selected_group_key = str(group_combo.currentData())
         x_pixels_step = int(spin_x_step.value())
         y_pixels_step = int(spin_y_step.value())
         if reset_selected["value"]:
-            return None, None, True, x_pixels_step, y_pixels_step
+            return selected_group_key, None, None, True, x_pixels_step, y_pixels_step
 
         vmin = float(spin_min.value())
         vmax = float(spin_max.value())
@@ -219,7 +230,38 @@ class CSDAddOn(BaseAddOn):
             vmax += epsilon
         if vmin > vmax:
             vmin, vmax = vmax, vmin
-        return vmin, vmax, False, x_pixels_step, y_pixels_step
+        return selected_group_key, vmin, vmax, False, x_pixels_step, y_pixels_step
+
+    @staticmethod
+    def _group_key(group: Any) -> str:
+        group_name = str(getattr(group, "name", "") or "").strip()
+        channels = ",".join(str(ch) for ch in (getattr(group, "channel_indexes", []) or []))
+        return f"{group_name}|{channels}"
+
+    def _group_options(self, channel_groups: List[Any]) -> List[Tuple[str, str]]:
+        result: List[Tuple[str, str]] = []
+        for idx, group in enumerate(channel_groups or []):
+            if getattr(group, "is_auxiliary", False):
+                continue
+            if not getattr(group, "channel_indexes", []):
+                continue
+            group_name = str(getattr(group, "name", "") or "").strip() or f"Group {idx}"
+            result.append((self._group_key(group), f"#{idx} {group_name}"))
+        return result
+
+    def _resolve_target_group(self, channel_groups: List[Any]) -> Optional[Any]:
+        options = self._group_options(channel_groups)
+        if not options:
+            return None
+        groups_map: Dict[str, Any] = {}
+        for group in (channel_groups or []):
+            key = self._group_key(group)
+            if key not in groups_map:
+                groups_map[key] = group
+        if self._target_group_key and self._target_group_key in groups_map:
+            return groups_map[self._target_group_key]
+        first_key = options[0][0]
+        return groups_map.get(first_key)
 
     def run(self, session_manager, add_on_data_dir):
         # CSD is computed on-the-fly in view; run() is used only
@@ -238,8 +280,19 @@ class CSDAddOn(BaseAddOn):
             default_min = -1.0
             default_max = 1.0
 
+        group_options = self._group_options(session_manager.gui_setup.channels_groups)
+        if not group_options:
+            yield {"progress": 100, "message": "No non-auxiliary channel groups to configure"}
+            return
+        default_group = self._resolve_target_group(session_manager.gui_setup.channels_groups)
+        if default_group is None:
+            yield {"progress": 100, "message": "No non-auxiliary channel groups to configure"}
+            return
+        default_group_key = self._group_key(default_group)
+
         result = self._ask_background_scale(
-            add_on_data_dir,
+            group_options,
+            default_group_key,
             default_min,
             default_max,
             self._x_pixels_step,
@@ -248,7 +301,8 @@ class CSDAddOn(BaseAddOn):
         if result is None:
             return
 
-        vmin, vmax, reset_to_auto, x_pixels_step, y_pixels_step = result
+        selected_group_key, vmin, vmax, reset_to_auto, x_pixels_step, y_pixels_step = result
+        self._target_group_key = selected_group_key
         self._x_pixels_step = self._sanitize_pixels_step(
             x_pixels_step, self.DEFAULT_X_PIXELS_STEP
         )
@@ -414,13 +468,31 @@ class CSDAddOn(BaseAddOn):
         add_on_data_dir = Path(add_on_data_dir) if add_on_data_dir is not None else None
         self._load_config_if_needed(add_on_data_dir)
 
-        if not visible_channel_indexes:
+        if not visible_channel_indexes or not channel_groups:
             return
 
-        # Build data matrix (time, channels) from currently visible EEG channels.
-        # Only visible time window is used to keep view() fast on redraw.
+        target_group = self._resolve_target_group(channel_groups)
+        if target_group is None:
+            return
+        target_channels = [
+            ch_idx for ch_idx in (getattr(target_group, "channel_indexes", []) or [])
+            if ch_idx in visible_channel_indexes and ch_idx in processed_data
+        ]
+        if len(target_channels) < 2:
+            return
+
+        rects_by_channel: Dict[int, QRect] = {
+            ch_idx: rect for ch_idx, rect in (channel_rects or [])
+        }
+        target_rects = [rects_by_channel[ch_idx] for ch_idx in target_channels if ch_idx in rects_by_channel]
+        if not target_rects:
+            return
+        group_top = min(rect.top() for rect in target_rects)
+        group_bottom = max(rect.bottom() for rect in target_rects)
+        group_height = max(1, group_bottom - group_top + 1)
+
         series_list: List[np.ndarray] = []
-        for ch_idx in visible_channel_indexes:
+        for ch_idx in target_channels:
             ch_data = processed_data.get(ch_idx)
             if ch_data is None:
                 return
@@ -453,9 +525,10 @@ class CSDAddOn(BaseAddOn):
             )
 
         csd_key = (
-            tuple(visible_channel_indexes),
+            self._group_key(target_group),
+            tuple(target_channels),
             signal_width,
-            draw_area_height,
+            group_height,
             int(self._x_pixels_step),
             int(self._y_pixels_step),
             tuple(data_signature),
@@ -469,7 +542,7 @@ class CSDAddOn(BaseAddOn):
                 data,
                 signal_width,
                 self._x_pixels_step,
-                draw_area_height,
+                group_height,
                 self._y_pixels_step,
             )
             self._cached_csd_key = csd_key
@@ -497,7 +570,7 @@ class CSDAddOn(BaseAddOn):
         key = (
             csd_key,
             signal_width,
-            draw_area_height,
+            group_height,
             float(vmin),
             float(vmax),
             csd.shape,
@@ -519,19 +592,19 @@ class CSDAddOn(BaseAddOn):
 
         # Draw CSD background into the same area where EEG traces are drawn
         left_margin = 0  # getattr(signal_widget, "_left_margin", 0)
-        rect = QRect(left_margin, 0, signal_width, draw_area_height)
+        rect = QRect(left_margin, group_top, signal_width, group_height)
         painter.drawImage(rect, self._cached_image)
 
-        # Draw compact legend in bottom-right on semi-transparent background
+        # Draw compact legend in top-left corner of the selected group.
         bar_width = max(8, int(signal_width * 0.012))
-        bar_height = max(28, int(draw_area_height * 0.22))
+        bar_height = max(24, min(int(group_height * 0.45), 140))
         panel_padding = 6
         label_width = 46
         title_height = 14
         panel_width = bar_width + label_width + panel_padding * 3
         panel_height = bar_height + title_height + panel_padding * 2
-        panel_x = left_margin + signal_width - panel_width - 6
-        panel_y = draw_area_height - panel_height - 6
+        panel_x = left_margin + 6
+        panel_y = group_top + 6
 
         painter.save()
         painter.setPen(Qt.PenStyle.NoPen)
