@@ -263,15 +263,17 @@ class SpikesAddOn(BaseAddOn):
         add_ons_data_dir.mkdir(parents=True, exist_ok=True)
 
         experiment_data = session_manager.experiment_data
-        sweep_idx = session_manager.gui_setup.current_sweep_idx
+        sweep_idx = int(session_manager.gui_setup.current_sweep_idx)
 
         if not channel_indexes:
             yield {"progress": 100, "message": "No EEG channels to process"}
             return
 
         start_sample = 0
-        output_number_of_dots = header.number_of_points_per_sweep
-        end_sample = header.number_of_points_per_sweep
+        sweep_points = int(header.number_of_points_per_sweep[sweep_idx])
+        output_number_of_dots = max(1, int(sweep_points))
+        end_sample = int(start_sample + sweep_points)
+        distance_samples = max(1, int(round(0.001 * float(header.sample_rate))))
 
         spikes_by_channel: Dict[int, List[Spike]] = {}
         total = len(channel_indexes)
@@ -279,20 +281,22 @@ class SpikesAddOn(BaseAddOn):
         yield {"progress": 0, "message": f"Detecting spikes for sweep {sweep_idx}..."}
 
         for idx, channel_idx in enumerate(channel_indexes, start=1):
+            channel_idx = int(channel_idx)
             channel_data = experiment_data.process_single_channel(
                 channel_idx=channel_idx,
                 sweep_idx=sweep_idx,
-                start_sample=start_sample,
-                end_sample=end_sample,
+                start_sample=int(start_sample),
+                end_sample=int(end_sample),
                 each_point=1,
-                sample_rate=header.sample_rate,
+                sample_rate=float(header.sample_rate),
                 filters=one_filter,
-                output_number_of_dots=output_number_of_dots,
+                output_number_of_dots=int(output_number_of_dots),
                 transformation_add_ons=[],
             )
+            channel_data = np.asarray(channel_data, dtype=np.float64)
             mad = float(np.median(np.abs(channel_data - np.median(channel_data))))
             threshold_value = threshold * mad / 0.6745 if mad > 0 else threshold
-            peaks, _ = find_peaks(-channel_data, height=threshold_value, distance=int(0.001 * header.sample_rate))
+            peaks, _ = find_peaks(-channel_data, height=threshold_value, distance=distance_samples)
             vals = channel_data[peaks]
             spikes_by_channel[channel_idx] = [
                 Spike(

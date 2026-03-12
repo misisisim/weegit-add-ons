@@ -306,8 +306,9 @@ class DigitalEventsAddOn(BaseAddOn):
             for channel_idx in channel_indexes:
                 # Full sweep, filtered
                 start_sample = 0
-                end_sample = header.number_of_points_per_sweep
-                output_number_of_dots = header.number_of_points_per_sweep
+                sweep_points = int(header.number_of_points_per_sweep[sweep_idx])
+                end_sample = sweep_points
+                output_number_of_dots = sweep_points
                 each_point = 1
 
                 signal = experiment_data.process_single_channel(
