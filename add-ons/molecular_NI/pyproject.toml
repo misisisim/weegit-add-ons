@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.urls]
-"Author (Aleksandr)" = "https://github.com/sasha1618"
+"Aleksandr's github" = "https://github.com/sasha1618"
 
 [tool.setuptools]
 py-modules = ["analog_events", "csd", "spikes", "digital_events"]
