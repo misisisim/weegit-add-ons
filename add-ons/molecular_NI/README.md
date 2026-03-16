@@ -1,111 +1,105 @@
 # Add-ons examples
 
-Этот пакет содержит 4 примера add-on'ов для Weegit:
+This package contains 4 examples of add-ons for Weegit:
 
-- `spikes` - поиск спайков на выбранных каналах и отрисовка меток в трейсах.
-- `digital_events` - детекция цифровых событий и добавление их в `UserSession.events`.
-- `analog_events` - детекция событий на аналоговом канале и добавление их в `UserSession.events`.
-- `csd` - визуализация CSD-фона под сигналами.
+- `spikes` – searches for spikes on selected channels and draws markers in the traces.
+- `digital_events` – detects digital events and adds them to `UserSession.events`.
+- `analog_events` – detects events on an analog channel and adds them to `UserSession.events`.
+- `csd` – visualizes a CSD background beneath the signals.
 
-Все add-on'ы запускаются через боковую панель `Analysis > Run` в Weegit.
+All add-ons are launched via the `Analysis > Run` side panel in Weegit.
 
 ---
 
 ## Spikes (`spikes.py`)
 
-### Что делает
+### What it does
 
-- Обрабатывает **только текущий sweep**.
-- Ищет отрицательные пики (спайки) на выбранных каналах.
-- Сохраняет результат в `add_ons/data/<module_name>/<SWEEP_IDX>.spikes`.
-- В режиме `View` рисует красные маркеры на найденных спайках.
+- Processes **only the current sweep**.
+- Searches for negative peaks (spikes) on selected channels.
+- Saves the result in `add_ons/data/<module_name>/<SWEEP_IDX>.spikes`.
+- In `View` mode, draws red markers on the detected spikes.
 
-### Поля формы и влияние
+### Form fields and their effect
 
-- `Channel group` - из какой группы брать доступные каналы.
-- `Channels` - на каких каналах выполнять поиск.
-- `Threshold` - множитель для порога через MAD-оценку:
-  - порог вычисляется как `threshold * MAD / 0.6745` (если `MAD > 0`);
-  - больше значение -> меньше чувствительность, меньше найденных спайков.
-- `Use filter` - включить предварительную фильтрацию перед поиском.
-- `Filter type` - тип фильтра.
-- `Filter params` - параметры выбранного фильтра:
-  - определяют полосу/характер подавления;
-  - влияют на форму сигнала и, соответственно, на число/позицию найденных пиков.
+- `Channel group` – which group to take available channels from.
+- `Channels` – on which channels to perform the search.
+- `Threshold` – multiplier for the threshold using MAD estimation:
+  - threshold is calculated as `threshold * MAD / 0.6745` (if `MAD > 0`);
+  - larger value → lower sensitivity, fewer detected spikes.
+- `Use filter` – enable pre‑filtering before the search.
+- `Filter type` – type of filter.
+- `Filter params` – parameters of the selected filter:
+  - define the band / suppression characteristics;
+  - affect the signal shape and therefore the number/position of detected peaks.
 
 ---
 
 ## Digital events (`digital_events.py`)
 
-### Что делает
+### What it does
 
-- Обрабатывает **все sweep**.
-- Для каждого выбранного канала ищет пики, интерпретируя их как события.
-- Найденные события добавляются в `UserSession.events` с новым именем события.
+- Processes **all sweeps**.
+- For each selected channel, finds peaks and interprets them as events.
+- Adds the detected events to `UserSession.events` with a new event name.
 
-### Поля формы и влияние
+### Form fields and their effect
 
-- `Channel group` - группа каналов для выбора.
-- `Digital channels` - каналы, по которым выполнять поиск.
-- `Event name` - имя новой записи в словаре событий (должно быть уникальным).
-- `Height (threshold)` - порог для `find_peaks`:
-  - положительный -> поиск положительных пиков;
-  - отрицательный -> сигнал инвертируется, ищутся "провалы" ниже порога.
-- `Min distance, ms` - минимальная дистанция между соседними событиями:
-  - больше значение -> плотные срабатывания склеиваются.
-- `Use filter` / `Filter type` / `Filter params` - опциональная предварительная фильтрация каждого канала.
+- `Channel group` – channel group for selection.
+- `Digital channels` – channels on which to perform the search.
+- `Event name` – name of the new entry in the events dictionary (must be unique).
+- `Height (threshold)` – threshold for `find_peaks`:
+  - positive → searches for positive peaks;
+  - negative → the signal is inverted, looks for “dips” below the threshold.
+- `Min distance, ms` – minimum distance between adjacent events:
+  - larger value → dense detections are merged.
+- `Use filter` / `Filter type` / `Filter params` – optional pre‑filtering of each channel.
 
 ---
 
 ## Analog events (`analog_events.py`)
 
-### Что делает
+### What it does
 
-- Обрабатывает **все sweep**.
-- Ищет события на **одном выбранном аналоговом канале**.
-- После детекции добавляет события в `UserSession.events` с новым именем.
+- Processes **all sweeps**.
+- Searches for events on **one selected analog channel**.
+- After detection, adds the events to `UserSession.events` with a new name.
 
-### Поля формы и влияние
+### Form fields and their effect
 
-- `Channel group` - группа, из которой выбирается аналоговый канал.
-- `Analog channel` - канал для поиска.
-- `Event name` - имя новой записи в словаре событий (должно быть уникальным).
-- `Stimulation time, ms` - временной сдвиг, который добавляется к каждому найденному времени события.
-- `Height (threshold)` - порог поиска пиков:
-  - если отрицательный, сигнал инвертируется (поиск отрицательных отклонений).
-- `Use filter` / `Filter type` / `Filter params` - опциональная фильтрация перед поиском.
+- `Channel group` – group from which the analog channel is chosen.
+- `Analog channel` – channel to search on.
+- `Event name` – name of the new entry in the events dictionary (must be unique).
+- `Stimulation time, ms` – time offset added to each detected event time.
+- `Height (threshold)` – peak detection threshold:
+  - if negative, the signal is inverted (search for negative deflections).
+- `Use filter` / `Filter type` / `Filter params` – optional filtering before the search.
 
-Примечание: после фильтрации импульс может давать парные пики; add-on оставляет первый пик из пары.
+Note: after filtering, an impulse may produce paired peaks; the add‑on keeps the first peak of each pair.
 
 ---
 
 ## CSD (`csd.py`)
 
-### Что делает
+### What it does
 
-- В `View` вычисляет CSD по видимым каналам и рисует цветовую карту под трейсами.
-- В `Run` не запускает долгие вычисления, а открывает форму настройки шкалы и плотности рендера.
-- Настройки сохраняются в `add_ons/data/<module_name>/csd_config.json`.
+- In `View`, computes CSD over the visible channels and draws a color map beneath the traces.
+- In `Run`, does not perform lengthy computations but opens a form to adjust the scale and render density.
+- Settings are saved in `add_ons/data/<module_name>/csd_config.json`.
 
-### Поля формы и влияние
+### Form fields and their effect
 
 - `Scale min` / `Scale max`:
-  - задают ручной диапазон цветовой шкалы;
-  - при ручной шкале цвета становятся стабильными между перерисовками.
+  - set a manual range for the color scale;
+  - with a manual scale, colors remain stable across redraws.
 - `X pixel step`:
-  - шаг по времени при рендере;
-  - больше значение -> быстрее отрисовка, но ниже детализация по X.
+  - time step during rendering;
+  - larger value → faster drawing, but lower X‑detail.
 - `Y pixel step`:
-  - шаг по каналам/высоте при рендере;
-  - больше значение -> быстрее отрисовка, но ниже детализация по Y.
+  - channel/height step during rendering;
+  - larger value → faster drawing, but lower Y‑detail.
 - `Reset to auto`:
-  - сбрасывает ручной `min/max`;
-  - шкала снова берется автоматически из текущего CSD.
+  - resets manual `min/max`;
+  - the scale is again taken automatically from the current CSD.
 
 ---
-
-## Практические подсказки
-
-- Для шумных данных сначала подберите фильтр, затем порог.
-- Если событий слишком много, увеличьте `Height` и/или `Min distance`.
-- Если CSD тормозит на больших окнах, увеличьте `X pixel step` и `Y pixel step`.
