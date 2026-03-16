@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "molecular_NI"
 version = "0.6.2"
-description = "Finds spikes by threshold and draws them in signal traces."
+description = "Example add-ons for Weegit: spike detection, digital/analog event detection, and CSD visualization."
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
     {name = "Aleksandr", email = "sasha.k.1618@gmail.com"},
-    {name = "Anatoliy"},
+    {name = "Anatoliy", email = "anatolijlogaskin@gmail.com"},
 ]
 
 dependencies = [
