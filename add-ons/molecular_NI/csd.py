@@ -47,6 +47,7 @@ class CSDAddOn(BaseAddOn):
         self._y_pixels_step: int = self.DEFAULT_Y_PIXELS_STEP
         self._target_group_key: Optional[str] = None
         self._config_loaded_for_dir: Optional[Path] = None
+        self._config_mtime_ns: Optional[int] = None
 
         # Cached CSD and rendered assets
         self._cached_csd: Optional[np.ndarray] = None
@@ -68,6 +69,7 @@ class CSDAddOn(BaseAddOn):
             return
         try:
             cfg_path.unlink(missing_ok=True)
+            self._config_mtime_ns = None
         except Exception:
             pass
 
@@ -91,15 +93,26 @@ class CSDAddOn(BaseAddOn):
         if add_on_data_dir is None:
             return
         add_on_data_dir = Path(add_on_data_dir)
-        if self._config_loaded_for_dir == add_on_data_dir:
+        cfg_path = self._config_path(add_on_data_dir)
+        cfg_mtime_ns: Optional[int] = None
+        if cfg_path and cfg_path.exists():
+            try:
+                cfg_mtime_ns = int(cfg_path.stat().st_mtime_ns)
+            except Exception:
+                cfg_mtime_ns = None
+
+        if (
+            self._config_loaded_for_dir == add_on_data_dir
+            and self._config_mtime_ns == cfg_mtime_ns
+        ):
             return
 
-        cfg_path = self._config_path(add_on_data_dir)
         self._scale_min = None
         self._scale_max = None
         self._x_pixels_step = self.DEFAULT_X_PIXELS_STEP
         self._y_pixels_step = self.DEFAULT_Y_PIXELS_STEP
         self._config_loaded_for_dir = add_on_data_dir
+        self._config_mtime_ns = cfg_mtime_ns
 
         if cfg_path and cfg_path.exists():
             try:
@@ -144,6 +157,8 @@ class CSDAddOn(BaseAddOn):
             payload["vmax"] = float(self._scale_max)
         try:
             cfg_path.write_text(json.dumps(payload), encoding="utf-8")
+            self._config_loaded_for_dir = add_on_data_dir
+            self._config_mtime_ns = int(cfg_path.stat().st_mtime_ns)
         except Exception:
             pass
 
