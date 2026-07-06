@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "utils"
+version = "0.6.2"
+description = "Different utils."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    {name = "Aleksandr", email = "sasha.k.1618@gmail.com"},
+]
+
+dependencies = []
+
+[project.urls]
+"Author (Aleksandr)" = "https://github.com/sasha1618"
+
+[tool.setuptools]
+py-modules = ["nir_common", "spikes_detector", "spikes_viewer", "signal_plot", "raster_plot", "aligned_spikes_plot", "jupyter_notebook_generator", "spectogram_plot", "burst_detector", "network_burst_detector", "synchrony_connectivity", "reverberation_detector", "spike_field_coupling", "propagation_leader_analysis"]
+
+[project.entry-points.add_ons]
+spikes_detector = "spikes_detector:SpikesDetectorAddOn"
+spikes_viewer = "spikes_viewer:SpikesViewerAddOn"
+signal_plot = "signal_plot:SignalPlotAddOn"
+raster_plot = "raster_plot:RasterPlotAddOn"
+aligned_spikes_plot = "aligned_spikes_plot:AlignedSpikesPlotAddOn"
+jupyter_notebook_generator = "jupyter_notebook_generator:JupyterNotebookGeneratorAddOn"
+spectogram_plot = "spectogram_plot:SpectogramPlotAddOn"
+burst_detector = "burst_detector:BurstDetectorAddOn"
+network_burst_detector = "network_burst_detector:NetworkBurstDetectorAddOn"
+synchrony_connectivity = "synchrony_connectivity:SynchronyConnectivityAddOn"
+reverberation_detector = "reverberation_detector:ReverberationDetectorAddOn"
+spike_field_coupling = "spike_field_coupling:SpikeFieldCouplingAddOn"
+propagation_leader_analysis = "propagation_leader_analysis:PropagationLeaderAnalysisAddOn"
