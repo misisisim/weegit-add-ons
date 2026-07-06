@@ -4,6 +4,12 @@
     "module_name": "molecular_NI",
     "keywords": ["spikes", "in vitro", "in vivo", "ex vivo"],
     "path": "add-ons/molecular_NI"
+  },
+  {
+    "label": "Utils",
+    "module_name": "utils_temp",
+    "keywords": ["spikes", "in vitro", "in vivo", "ex vivo"],
+    "path": "add-ons/utils_temp"
   }
 ]
 
