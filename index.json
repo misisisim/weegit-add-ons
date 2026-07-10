@@ -10,6 +10,12 @@
     "module_name": "utils_temp",
     "keywords": ["spikes", "in vitro", "in vivo", "ex vivo"],
     "path": "add-ons/utils_temp"
+  },
+  {
+    "label": "Test",
+    "module_name": "test",
+    "keywords": ["spikes", "in vitro", "in vivo", "ex vivo"],
+    "path": "add-ons/test"
   }
 ]
 
