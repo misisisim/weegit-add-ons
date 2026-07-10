@@ -1,4 +1,11 @@
 [
+  
+  {
+    "label": "Tools for organoid's analysis",
+    "module_name": "weegit-add-on-organoids",
+    "keywords": ["spikes", "in vitro", "organoids"],
+    "path": "add-ons/0009-0008-6158-2311"
+  },
   {
     "label": "Molecular neural interfaces lab",
     "module_name": "molecular_NI",
